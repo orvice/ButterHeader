@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* 深色模式跟随系统：变体绑定到 prefers-color-scheme（零 JS，见设计 spec） */
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+@theme {
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --radius-card: 0.625rem;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 表面与文字色调：亮色白/slate-900，暗色 slate-950/slate-100 */
+body {
+  background: #f8fafc;
+  color: #0f172a;
+}
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0f172a;
+    color: #e2e8f0;
+  }
+}
