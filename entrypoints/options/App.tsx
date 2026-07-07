@@ -51,6 +51,16 @@ export function App() {
       setGlobalPauseState(config.globalPause);
       setSelectedId(config.profiles[0]?.id ?? null);
     });
+    // 反映 Popup 等外部修改；页面聚焦（正在编辑）时不重载，避免覆盖防抖中的未保存输入
+    const reload = () => {
+      if (document.hasFocus()) return;
+      void loadConfig().then((config) => {
+        setProfiles(config.profiles);
+        setGlobalPauseState(config.globalPause);
+      });
+    };
+    chrome.storage.sync.onChanged.addListener(reload);
+    return () => chrome.storage.sync.onChanged.removeListener(reload);
   }, []);
 
   if (!profiles) return null;
