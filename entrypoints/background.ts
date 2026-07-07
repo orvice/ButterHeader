@@ -1,3 +1,4 @@
+import { deriveBadge } from '@/src/core/badge';
 import { compileRules } from '@/src/core/compile';
 import { loadConfig } from '@/src/core/storage';
 
@@ -9,6 +10,9 @@ async function syncDnrRules() {
     removeRuleIds: existing.map((r) => r.id),
     addRules: newRules,
   });
+  const badge = deriveBadge(config);
+  await chrome.action.setBadgeText({ text: badge.text });
+  await chrome.action.setBadgeBackgroundColor({ color: badge.color });
 }
 
 export default defineBackground(() => {
