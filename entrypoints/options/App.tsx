@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { HeaderRule, Profile } from '@/src/core/compile';
 import {
   deleteProfile,
@@ -7,6 +7,7 @@ import {
   setGlobalPause,
   setProfileOrder,
 } from '@/src/core/storage';
+import { createProfileSaver } from '@/src/core/save-queue';
 import { exportConfig, exportProfile, parseImport } from '@/src/core/transfer';
 
 function downloadJson(filename: string, json: string) {
@@ -27,6 +28,22 @@ export function App() {
   const [globalPause, setGlobalPauseState] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const saver = useMemo(
+    () =>
+      createProfileSaver({
+        save: saveProfile,
+        delayMs: 500,
+        onError: (error, unsaved) =>
+          setSaveError(
+            `Failed to save profile "${unsaved.name}": ${
+              error instanceof Error ? error.message : String(error)
+            }. Your edits are still on screen — trim the profile (fewer/shorter rules or domains) and edit again to retry.`,
+          ),
+      }),
+    [],
+  );
 
   useEffect(() => {
     void loadConfig().then((config) => {
@@ -42,7 +59,8 @@ export function App() {
 
   const updateProfile = (next: Profile) => {
     setProfiles(profiles.map((p) => (p.id === next.id ? next : p)));
-    void saveProfile(next);
+    setSaveError(null);
+    saver.enqueue(next);
   };
 
   const addProfile = () => {
@@ -79,6 +97,25 @@ export function App() {
   return (
     <main style={{ maxWidth: 720, margin: '2rem auto', fontFamily: 'system-ui' }}>
       <h1>ButterHeader</h1>
+
+      {saveError && (
+        <div
+          role="alert"
+          style={{
+            background: '#fdecea',
+            color: '#b3261e',
+            border: '1px solid #b3261e',
+            borderRadius: 4,
+            padding: 8,
+            marginBottom: 16,
+          }}
+        >
+          {saveError}
+          <button style={{ marginLeft: 8 }} onClick={() => setSaveError(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
         <input
