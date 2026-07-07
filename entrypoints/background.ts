@@ -1,9 +1,10 @@
 import { deriveBadge } from '@/src/core/badge';
+import { chromeSyncStorage } from '@/src/core/chrome-storage';
 import { compileRules } from '@/src/core/compile';
-import { loadConfig } from '@/src/core/storage';
+import type { Config } from '@/src/core/compile';
+import { createConfigStore } from '@/src/core/config-store';
 
-async function syncDnrRules() {
-  const config = await loadConfig();
+async function syncDnrRules(config: Config) {
   const newRules = compileRules(config);
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
   await chrome.declarativeNetRequest.updateDynamicRules({
@@ -16,6 +17,8 @@ async function syncDnrRules() {
 }
 
 export default defineBackground(() => {
-  void syncDnrRules();
-  chrome.storage.sync.onChanged.addListener(() => void syncDnrRules());
+  void createConfigStore(chromeSyncStorage).then((store) => {
+    void syncDnrRules(store.getState().config);
+    store.subscribe(() => void syncDnrRules(store.getState().config));
+  });
 });

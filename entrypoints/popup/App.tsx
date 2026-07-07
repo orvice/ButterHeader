@@ -1,19 +1,11 @@
-import { useEffect, useState } from 'react';
-import type { Config } from '@/src/core/compile';
-import { loadConfig, saveProfile, setGlobalPause } from '@/src/core/storage';
+import { useConfigStore } from '@/src/ui/use-config-store';
 
 /** Popup 只承载高频开关，不做编辑（见 CONTEXT.md）；编辑一律在 Options 页 */
 export function App() {
-  const [config, setConfig] = useState<Config | null>(null);
-
-  useEffect(() => {
-    const reload = () => void loadConfig().then(setConfig);
-    reload();
-    chrome.storage.sync.onChanged.addListener(reload);
-    return () => chrome.storage.sync.onChanged.removeListener(reload);
-  }, []);
-
-  if (!config) return null;
+  const bound = useConfigStore();
+  if (!bound) return null;
+  const { store, state } = bound;
+  const { config } = state;
 
   return (
     <main style={{ minWidth: 260, padding: 12, fontFamily: 'system-ui', fontSize: 14 }}>
@@ -21,7 +13,7 @@ export function App() {
         <input
           type="checkbox"
           checked={config.globalPause}
-          onChange={(e) => void setGlobalPause(e.target.checked)}
+          onChange={(e) => store.setGlobalPause(e.target.checked)}
         />
         <strong>Global pause</strong>
       </label>
@@ -40,7 +32,7 @@ export function App() {
           <input
             type="checkbox"
             checked={profile.enabled}
-            onChange={(e) => void saveProfile({ ...profile, enabled: e.target.checked })}
+            onChange={(e) => store.updateProfile({ ...profile, enabled: e.target.checked }, { flush: true })}
           />
           {profile.name}
         </label>
