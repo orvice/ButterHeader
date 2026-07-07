@@ -7,6 +7,16 @@ import {
   setGlobalPause,
   setProfileOrder,
 } from '@/src/core/storage';
+import { exportConfig, exportProfile, parseImport } from '@/src/core/transfer';
+
+function downloadJson(filename: string, json: string) {
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function newProfile(name: string): Profile {
   return { id: crypto.randomUUID(), name, enabled: true, domains: [], rules: [] };
@@ -118,10 +128,42 @@ export function App() {
               onChange={(e) => updateProfile({ ...profile, name: e.target.value })}
             />
             <button onClick={() => setSelectedId(profile.id)}>Edit</button>
+            <button
+              onClick={() =>
+                downloadJson(`butterheader-profile-${profile.name}.json`, exportProfile(profile))
+              }
+            >
+              Export
+            </button>
             <button onClick={() => removeProfile(profile)}>Delete</button>
           </div>
         ))}
         <button onClick={addProfile}>Add profile</button>
+        <button
+          onClick={() => downloadJson('butterheader-config.json', exportConfig({ globalPause, profiles }))}
+        >
+          Export all
+        </button>
+        <label style={{ marginLeft: 8 }}>
+          Import JSON
+          <input
+            type="file"
+            accept="application/json,.json"
+            style={{ marginLeft: 4 }}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              try {
+                const imported = parseImport(await file.text());
+                for (const p of imported) await saveProfile(p);
+                setProfiles([...profiles, ...imported]);
+              } catch (err) {
+                window.alert(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
+              }
+            }}
+          />
+        </label>
       </section>
 
       {selected && (
