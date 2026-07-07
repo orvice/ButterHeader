@@ -1,0 +1,29 @@
+# ButterHeader — Ubiquitous Language
+
+## Terms
+
+### Profile
+一组独立的 header 修改配置单元。多个 Profile 可以**同时生效**；每个 Profile 有自己的启用/暂停开关、header 列表和 domain 匹配规则。
+
+### Header 规则（Header Rule）
+Profile 内的一条 header 修改指令。由四部分组成：**目标**（request / response）、**操作**（set / remove）、header 名、值（remove 时无值）。每条规则可单独启用/禁用。
+
+### Domain 规则（Domain Filter）
+Profile 级的白名单，决定该 Profile 对哪些站点生效。匹配的是**请求的目标域名**（request domain），而非发起请求的页面域名——在 A 站页面上发往 B 站的请求，按 B 站判定。`example.com` 精确匹配该域名；`*.example.com` 匹配其所有子域。**空列表 = 对所有网站生效**。无排除列表。
+
+### 全局暂停（Global Pause）
+一键停用整个扩展的开关。它不改写任何 Profile 或规则的状态，只是叠加一层判断。恢复后一切按原状态生效。
+
+生效判定：`规则生效 = !全局暂停 && Profile 启用 && 规则启用 && Domain 命中`。
+
+### Popup
+点击扩展图标弹出的快捷面板。只承载高频操作：全局暂停、各 Profile 的启用/暂停开关、跳转到编辑页。
+
+### Options 页
+全屏配置页。承载低频编辑操作：Profile 的增删改、Header 规则编辑、Domain 列表编辑、导入/导出。
+
+### 导入 / 导出（Import / Export）
+配置的 JSON 备份与分享机制，带 `version` 字段。两种粒度：全量配置、单个 Profile。导入一律**追加合并**（不覆盖现有 Profile）。
+
+### 冲突覆盖（Override by Order）
+当一个请求同时命中多个已启用 Profile，且它们设置了同名 header 时，按 Profile 列表顺序**后者覆盖前者**（层叠语义）。顺序即 Options 页列表顺序，用户可拖拽调整。
