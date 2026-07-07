@@ -25,3 +25,15 @@ export async function saveProfile(profile: Profile): Promise<void> {
   }
   await chrome.storage.sync.set(updates);
 }
+
+export async function deleteProfile(id: string): Promise<void> {
+  const { profileOrder = [] } = await chrome.storage.sync.get('profileOrder');
+  await chrome.storage.sync.set({
+    profileOrder: (profileOrder as string[]).filter((p) => p !== id),
+  });
+  await chrome.storage.sync.remove(PROFILE_PREFIX + id);
+}
+
+export async function setProfileOrder(order: string[]): Promise<void> {
+  await chrome.storage.sync.set({ profileOrder: order });
+}
