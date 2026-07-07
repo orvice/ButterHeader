@@ -263,6 +263,61 @@ describe('compileRules', () => {
     expect(regex.test('https://www.example.com/')).toBe(false);
   });
 
+  it('gives a later profile higher DNR priority so its same-name header set wins (override by order)', () => {
+    const profile = (id: string, value: string) => ({
+      id,
+      name: id,
+      enabled: true,
+      domains: [],
+      rules: [
+        { id: `${id}-r1`, enabled: true, target: 'request' as const, operation: 'set' as const, name: 'X-Env', value },
+      ],
+    });
+    const config: Config = { globalPause: false, profiles: [profile('first', 'staging'), profile('second', 'prod')] };
+
+    const compiled = compileRules(config);
+    expect(compiled).toHaveLength(2);
+    const byValue = (v: string) =>
+      compiled.find((r) => r.action.requestHeaders![0].value === v)!;
+    // DNR：同名 header 由更高 priority 的规则先处理，set 后低优先级不再生效
+    expect(byValue('prod').priority).toBeGreaterThan(byValue('staging').priority!);
+  });
+
+  it('merges two enabled profiles with different headers into independent rules while skipping a paused profile between them', () => {
+    const config: Config = {
+      globalPause: false,
+      profiles: [
+        {
+          id: 'p1',
+          name: 'A',
+          enabled: true,
+          domains: [],
+          rules: [{ id: 'r1', enabled: true, target: 'request', operation: 'set', name: 'X-A', value: 'a' }],
+        },
+        {
+          id: 'p2',
+          name: 'Paused',
+          enabled: false,
+          domains: [],
+          rules: [{ id: 'r2', enabled: true, target: 'request', operation: 'set', name: 'X-Paused', value: 'x' }],
+        },
+        {
+          id: 'p3',
+          name: 'B',
+          enabled: true,
+          domains: [],
+          rules: [{ id: 'r3', enabled: true, target: 'request', operation: 'set', name: 'X-B', value: 'b' }],
+        },
+      ],
+    };
+
+    const compiled = compileRules(config);
+    const headers = compiled.map((r) => r.action.requestHeaders![0].header);
+    expect(headers).toEqual(['X-A', 'X-B']);
+    const [a, b] = compiled;
+    expect(b.priority).toBeGreaterThan(a.priority!);
+  });
+
   it('compiles an empty config into an empty rule set', () => {
     expect(compileRules({ globalPause: false, profiles: [] })).toEqual([]);
   });

@@ -67,13 +67,15 @@ function toDomainCondition(domains: string[]): chrome.declarativeNetRequest.Rule
 
 export function compileRules(config: Config): DNRRule[] {
   const rules: DNRRule[] = [];
-  for (const profile of config.profiles) {
+  for (const [index, profile] of config.profiles.entries()) {
     if (!profile.enabled) continue;
     for (const rule of profile.rules) {
       if (!rule.enabled) continue;
       rules.push({
         id: rules.length + 1,
-        priority: 1,
+        // 冲突覆盖（Override by Order）：列表靠后的 Profile priority 更高，
+        // DNR 对同名 header 先应用高优先级规则，set 后低优先级不再修改
+        priority: index + 1,
         action: {
           type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType,
           ...(rule.target === 'request'
