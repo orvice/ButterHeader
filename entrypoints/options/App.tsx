@@ -53,17 +53,41 @@ export function App() {
       <h1>ButterHeader</h1>
       <h2>{profile.name}</h2>
       {profile.rules.map((rule) => (
-        <div key={rule.id} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <div key={rule.id} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            title="Enable rule"
+            checked={rule.enabled}
+            onChange={(e) => updateRule(rule.id, { enabled: e.target.checked })}
+          />
+          <select
+            value={rule.target}
+            onChange={(e) => updateRule(rule.id, { target: e.target.value as HeaderRule['target'] })}
+          >
+            <option value="request">Request</option>
+            <option value="response">Response</option>
+          </select>
+          <select
+            value={rule.operation}
+            onChange={(e) =>
+              updateRule(rule.id, { operation: e.target.value as HeaderRule['operation'] })
+            }
+          >
+            <option value="set">Set</option>
+            <option value="remove">Remove</option>
+          </select>
           <input
             placeholder="Header name"
             value={rule.name}
             onChange={(e) => updateRule(rule.id, { name: e.target.value })}
           />
-          <input
-            placeholder="Value"
-            value={rule.value ?? ''}
-            onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-          />
+          {rule.operation === 'set' && (
+            <input
+              placeholder="Value"
+              value={rule.value ?? ''}
+              onChange={(e) => updateRule(rule.id, { value: e.target.value })}
+            />
+          )}
           <button
             onClick={() =>
               update({ ...profile, rules: profile.rules.filter((r) => r.id !== rule.id) })

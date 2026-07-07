@@ -42,23 +42,27 @@ const ALL_RESOURCE_TYPES = [
   'other',
 ] as chrome.declarativeNetRequest.ResourceType[];
 
+function toHeaderInfo(rule: HeaderRule): chrome.declarativeNetRequest.ModifyHeaderInfo {
+  const operation = rule.operation as chrome.declarativeNetRequest.HeaderOperation;
+  return rule.operation === 'set'
+    ? { header: rule.name, operation, value: rule.value }
+    : { header: rule.name, operation };
+}
+
 export function compileRules(config: Config): DNRRule[] {
   const rules: DNRRule[] = [];
   for (const profile of config.profiles) {
     if (!profile.enabled) continue;
     for (const rule of profile.rules) {
+      if (!rule.enabled) continue;
       rules.push({
         id: rules.length + 1,
         priority: 1,
         action: {
           type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType,
-          requestHeaders: [
-            {
-              header: rule.name,
-              operation: 'set' as chrome.declarativeNetRequest.HeaderOperation,
-              value: rule.value,
-            },
-          ],
+          ...(rule.target === 'request'
+            ? { requestHeaders: [toHeaderInfo(rule)] }
+            : { responseHeaders: [toHeaderInfo(rule)] }),
         },
         condition: {
           urlFilter: '*',
