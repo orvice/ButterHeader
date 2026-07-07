@@ -49,6 +49,22 @@ function toHeaderInfo(rule: HeaderRule): chrome.declarativeNetRequest.ModifyHead
     : { header: rule.name, operation };
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Domain Filter → DNR condition（见 CONTEXT.md）。用 regexFilter 而非
+ * requestDomains：requestDomains 天然连带子域，无法表达「example.com 不命中子域」。
+ */
+function toDomainCondition(domains: string[]): chrome.declarativeNetRequest.RuleCondition {
+  if (domains.length === 0) return { urlFilter: '*' };
+  const hostAlts = domains.map((d) =>
+    d.startsWith('*.') ? `[^/:]+\\.${escapeRegex(d.slice(2))}` : escapeRegex(d),
+  );
+  return { regexFilter: `^[^:]+://(?:${hostAlts.join('|')})(?::\\d+)?(?:/|$)` };
+}
+
 export function compileRules(config: Config): DNRRule[] {
   const rules: DNRRule[] = [];
   for (const profile of config.profiles) {
@@ -65,7 +81,7 @@ export function compileRules(config: Config): DNRRule[] {
             : { responseHeaders: [toHeaderInfo(rule)] }),
         },
         condition: {
-          urlFilter: '*',
+          ...toDomainCondition(profile.domains),
           resourceTypes: ALL_RESOURCE_TYPES,
         },
       });

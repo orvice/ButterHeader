@@ -188,6 +188,81 @@ describe('compileRules', () => {
     ]);
   });
 
+  it('compiles an exact domain entry into a condition that matches only that host, not subdomains or other sites', () => {
+    const config: Config = {
+      globalPause: false,
+      profiles: [
+        {
+          id: 'p1',
+          name: 'Debug',
+          enabled: true,
+          domains: ['example.com'],
+          rules: [
+            { id: 'r1', enabled: true, target: 'request', operation: 'set', name: 'X-A', value: '1' },
+          ],
+        },
+      ],
+    };
+
+    const [rule] = compileRules(config);
+    expect(rule.condition.urlFilter).toBeUndefined();
+    const regex = new RegExp(rule.condition.regexFilter!);
+    expect(regex.test('https://example.com/')).toBe(true);
+    expect(regex.test('https://example.com/api/data?x=1')).toBe(true);
+    expect(regex.test('http://example.com:8080/')).toBe(true);
+    expect(regex.test('https://sub.example.com/')).toBe(false);
+    expect(regex.test('https://other.com/')).toBe(false);
+    expect(regex.test('https://notexample.com/')).toBe(false);
+    expect(regex.test('https://example.com.evil.com/')).toBe(false);
+  });
+
+  it('compiles a *.wildcard entry into a condition matching all subdomains but not the apex domain', () => {
+    const config: Config = {
+      globalPause: false,
+      profiles: [
+        {
+          id: 'p1',
+          name: 'Debug',
+          enabled: true,
+          domains: ['*.example.com'],
+          rules: [
+            { id: 'r1', enabled: true, target: 'request', operation: 'set', name: 'X-A', value: '1' },
+          ],
+        },
+      ],
+    };
+
+    const regex = new RegExp(compileRules(config)[0].condition.regexFilter!);
+    expect(regex.test('https://api.example.com/')).toBe(true);
+    expect(regex.test('https://a.b.example.com/path')).toBe(true);
+    expect(regex.test('https://example.com/')).toBe(false);
+    expect(regex.test('https://badexample.com/')).toBe(false);
+    expect(regex.test('https://api.other.com/')).toBe(false);
+  });
+
+  it('compiles a mixed domain list where any entry matching is enough', () => {
+    const config: Config = {
+      globalPause: false,
+      profiles: [
+        {
+          id: 'p1',
+          name: 'Debug',
+          enabled: true,
+          domains: ['example.com', '*.klook.com'],
+          rules: [
+            { id: 'r1', enabled: true, target: 'request', operation: 'set', name: 'X-A', value: '1' },
+          ],
+        },
+      ],
+    };
+
+    const regex = new RegExp(compileRules(config)[0].condition.regexFilter!);
+    expect(regex.test('https://example.com/')).toBe(true);
+    expect(regex.test('https://www.klook.com/')).toBe(true);
+    expect(regex.test('https://klook.com/')).toBe(false);
+    expect(regex.test('https://www.example.com/')).toBe(false);
+  });
+
   it('compiles an empty config into an empty rule set', () => {
     expect(compileRules({ globalPause: false, profiles: [] })).toEqual([]);
   });
