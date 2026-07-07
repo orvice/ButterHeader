@@ -1,14 +1,11 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import type { HeaderRule, Profile } from '@/src/core/compile';
-import {
-  deleteProfile,
-  loadConfig,
-  saveProfile,
-  setGlobalPause,
-  setProfileOrder,
-} from '@/src/core/storage';
-import { createProfileSaver } from '@/src/core/save-queue';
-import { exportConfig, exportProfile, parseImport } from '@/src/core/transfer';
+import { exportConfig, exportProfile } from '@/src/core/transfer';
+import { useConfigStore } from '@/src/ui/use-config-store';
+
+function newProfile(name: string): Profile {
+  return { id: crypto.randomUUID(), name, enabled: true, domains: [], rules: [] };
+}
 
 function downloadJson(filename: string, json: string) {
   const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
@@ -19,86 +16,39 @@ function downloadJson(filename: string, json: string) {
   URL.revokeObjectURL(url);
 }
 
-function newProfile(name: string): Profile {
-  return { id: crypto.randomUUID(), name, enabled: true, domains: [], rules: [] };
-}
-
 export function App() {
-  const [profiles, setProfiles] = useState<Profile[] | null>(null);
-  const [globalPause, setGlobalPauseState] = useState(false);
+  const bound = useConfigStore();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
-  const saver = useMemo(
-    () =>
-      createProfileSaver({
-        save: saveProfile,
-        delayMs: 500,
-        onError: (error, unsaved) =>
-          setSaveError(
-            `Failed to save profile "${unsaved.name}": ${
-              error instanceof Error ? error.message : String(error)
-            }. Your edits are still on screen — trim the profile (fewer/shorter rules or domains) and edit again to retry.`,
-          ),
-      }),
-    [],
-  );
+  if (!bound) return null;
+  const { store, state } = bound;
+  const { profiles } = state.config;
 
-  useEffect(() => {
-    void loadConfig().then((config) => {
-      setProfiles(config.profiles);
-      setGlobalPauseState(config.globalPause);
-      setSelectedId(config.profiles[0]?.id ?? null);
-    });
-    // 反映 Popup 等外部修改；页面聚焦（正在编辑）时不重载，避免覆盖防抖中的未保存输入
-    const reload = () => {
-      if (document.hasFocus()) return;
-      void loadConfig().then((config) => {
-        setProfiles(config.profiles);
-        setGlobalPauseState(config.globalPause);
-      });
-    };
-    chrome.storage.sync.onChanged.addListener(reload);
-    return () => chrome.storage.sync.onChanged.removeListener(reload);
-  }, []);
-
-  if (!profiles) return null;
-
-  const selected = profiles.find((p) => p.id === selectedId) ?? null;
-
-  const updateProfile = (next: Profile) => {
-    setProfiles(profiles.map((p) => (p.id === next.id ? next : p)));
-    setSaveError(null);
-    saver.enqueue(next);
-  };
+  const selected = profiles.find((p) => p.id === selectedId) ?? profiles[0] ?? null;
 
   const addProfile = () => {
     const profile = newProfile(`Profile ${profiles.length + 1}`);
-    setProfiles([...profiles, profile]);
+    store.addProfile(profile);
     setSelectedId(profile.id);
-    void saveProfile(profile);
   };
 
   const removeProfile = (profile: Profile) => {
     if (!window.confirm(`Delete profile "${profile.name}"?`)) return;
-    const next = profiles.filter((p) => p.id !== profile.id);
-    setProfiles(next);
-    if (selectedId === profile.id) setSelectedId(next[0]?.id ?? null);
-    void deleteProfile(profile.id);
+    store.removeProfile(profile.id);
+    if (selectedId === profile.id) setSelectedId(null);
   };
 
   const dropOn = (targetId: string) => {
     if (!dragId || dragId === targetId) return;
-    const next = profiles.filter((p) => p.id !== dragId);
-    const dragged = profiles.find((p) => p.id === dragId)!;
-    next.splice(next.findIndex((p) => p.id === targetId), 0, dragged);
-    setProfiles(next);
-    void setProfileOrder(next.map((p) => p.id));
+    const ids = profiles.map((p) => p.id).filter((id) => id !== dragId);
+    ids.splice(ids.indexOf(targetId), 0, dragId);
+    store.reorder(ids);
   };
 
   const updateRule = (profile: Profile, id: string, patch: Partial<HeaderRule>) => {
-    updateProfile({
+    store.updateProfile({
       ...profile,
       rules: profile.rules.map((r) => (r.id === id ? { ...r, ...patch } : r)),
     });
@@ -108,7 +58,7 @@ export function App() {
     <main style={{ maxWidth: 720, margin: '2rem auto', fontFamily: 'system-ui' }}>
       <h1>ButterHeader</h1>
 
-      {saveError && (
+      {(state.saveError || importError) && (
         <div
           role="alert"
           style={{
@@ -120,21 +70,23 @@ export function App() {
             marginBottom: 16,
           }}
         >
-          {saveError}
-          <button style={{ marginLeft: 8 }} onClick={() => setSaveError(null)}>
-            Dismiss
-          </button>
+          {state.saveError
+            ? `Failed to save profile "${state.saveError.profileName}": ${state.saveError.message}. ` +
+              'Your edits are still on screen — trim the profile (fewer/shorter rules or domains) and edit again to retry.'
+            : importError}
+          {importError && (
+            <button style={{ marginLeft: 8 }} onClick={() => setImportError(null)}>
+              Dismiss
+            </button>
+          )}
         </div>
       )}
 
       <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
         <input
           type="checkbox"
-          checked={globalPause}
-          onChange={(e) => {
-            setGlobalPauseState(e.target.checked);
-            void setGlobalPause(e.target.checked);
-          }}
+          checked={state.config.globalPause}
+          onChange={(e) => store.setGlobalPause(e.target.checked)}
         />
         Global pause (stop all header modifications; profile states are kept)
       </label>
@@ -159,7 +111,7 @@ export function App() {
               padding: 4,
               border: '1px solid #ddd',
               borderRadius: 4,
-              background: profile.id === selectedId ? '#eef' : '#fff',
+              background: profile.id === selected?.id ? '#eef' : '#fff',
               cursor: 'grab',
             }}
           >
@@ -168,11 +120,13 @@ export function App() {
               type="checkbox"
               title="Enable profile"
               checked={profile.enabled}
-              onChange={(e) => updateProfile({ ...profile, enabled: e.target.checked })}
+              onChange={(e) =>
+                store.updateProfile({ ...profile, enabled: e.target.checked }, { flush: true })
+              }
             />
             <input
               value={profile.name}
-              onChange={(e) => updateProfile({ ...profile, name: e.target.value })}
+              onChange={(e) => store.updateProfile({ ...profile, name: e.target.value })}
             />
             <button onClick={() => setSelectedId(profile.id)}>Edit</button>
             <button
@@ -187,7 +141,7 @@ export function App() {
         ))}
         <button onClick={addProfile}>Add profile</button>
         <button
-          onClick={() => downloadJson('butterheader-config.json', exportConfig({ globalPause, profiles }))}
+          onClick={() => downloadJson('butterheader-config.json', exportConfig(state.config))}
         >
           Export all
         </button>
@@ -202,11 +156,12 @@ export function App() {
               e.target.value = '';
               if (!file) return;
               try {
-                const imported = parseImport(await file.text());
-                for (const p of imported) await saveProfile(p);
-                setProfiles([...profiles, ...imported]);
+                store.importProfiles(await file.text());
+                setImportError(null);
               } catch (err) {
-                window.alert(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
+                setImportError(
+                  `Import failed: ${err instanceof Error ? err.message : String(err)}`,
+                );
               }
             }}
           />
@@ -229,10 +184,10 @@ export function App() {
                 <code>{domain}</code>
                 <button
                   onClick={() =>
-                    updateProfile({
-                      ...selected,
-                      domains: selected.domains.filter((d) => d !== domain),
-                    })
+                    store.updateProfile(
+                      { ...selected, domains: selected.domains.filter((d) => d !== domain) },
+                      { flush: true },
+                    )
                   }
                 >
                   Delete
@@ -245,7 +200,10 @@ export function App() {
                 const input = e.currentTarget.elements.namedItem('domain') as HTMLInputElement;
                 const domain = input.value.trim();
                 if (domain && !selected.domains.includes(domain)) {
-                  updateProfile({ ...selected, domains: [...selected.domains, domain] });
+                  store.updateProfile(
+                    { ...selected, domains: [...selected.domains, domain] },
+                    { flush: true },
+                  );
                 }
                 input.value = '';
               }}
@@ -301,10 +259,10 @@ export function App() {
               )}
               <button
                 onClick={() =>
-                  updateProfile({
-                    ...selected,
-                    rules: selected.rules.filter((r) => r.id !== rule.id),
-                  })
+                  store.updateProfile(
+                    { ...selected, rules: selected.rules.filter((r) => r.id !== rule.id) },
+                    { flush: true },
+                  )
                 }
               >
                 Delete
@@ -313,20 +271,23 @@ export function App() {
           ))}
           <button
             onClick={() =>
-              updateProfile({
-                ...selected,
-                rules: [
-                  ...selected.rules,
-                  {
-                    id: crypto.randomUUID(),
-                    enabled: true,
-                    target: 'request',
-                    operation: 'set',
-                    name: '',
-                    value: '',
-                  },
-                ],
-              })
+              store.updateProfile(
+                {
+                  ...selected,
+                  rules: [
+                    ...selected.rules,
+                    {
+                      id: crypto.randomUUID(),
+                      enabled: true,
+                      target: 'request',
+                      operation: 'set',
+                      name: '',
+                      value: '',
+                    },
+                  ],
+                },
+                { flush: true },
+              )
             }
           >
             Add header rule
