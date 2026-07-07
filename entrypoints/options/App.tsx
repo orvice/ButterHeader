@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { HeaderRule, Profile } from '@/src/core/compile';
 import { exportConfig, exportProfile } from '@/src/core/transfer';
+import { Button, Select, TextInput, Toggle, card } from '@/src/ui/components';
 import { useConfigStore } from '@/src/ui/use-config-store';
 
 function newProfile(name: string): Profile {
@@ -15,6 +16,9 @@ function downloadJson(filename: string, json: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+const sectionTitle = 'text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400';
+const hint = 'text-[13px] text-slate-500 dark:text-slate-400';
 
 export function App() {
   const bound = useConfigStore();
@@ -55,146 +59,158 @@ export function App() {
   };
 
   return (
-    <main style={{ maxWidth: 720, margin: '2rem auto', fontFamily: 'system-ui' }}>
-      <h1>ButterHeader</h1>
+    <main className="mx-auto max-w-3xl px-6 py-10 text-slate-900 dark:text-slate-100">
+      <header className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">ButterHeader</h1>
+      </header>
 
       {(state.saveError || importError) && (
         <div
           role="alert"
-          style={{
-            background: '#fdecea',
-            color: '#b3261e',
-            border: '1px solid #b3261e',
-            borderRadius: 4,
-            padding: 8,
-            marginBottom: 16,
-          }}
+          className="mb-6 flex items-start gap-2 rounded-card border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
         >
-          {state.saveError
-            ? `Failed to save profile "${state.saveError.profileName}": ${state.saveError.message}. ` +
-              'Your edits are still on screen — trim the profile (fewer/shorter rules or domains) and edit again to retry.'
-            : importError}
+          <span aria-hidden className="mt-0.5">⚠️</span>
+          <div className="flex-1">
+            {state.saveError
+              ? `Failed to save profile "${state.saveError.profileName}": ${state.saveError.message}. ` +
+                'Your edits are still on screen — trim the profile (fewer/shorter rules or domains) and edit again to retry.'
+              : importError}
+          </div>
           {importError && (
-            <button style={{ marginLeft: 8 }} onClick={() => setImportError(null)}>
+            <Button variant="ghost" className="px-2 py-0.5" onClick={() => setImportError(null)}>
               Dismiss
-            </button>
+            </Button>
           )}
         </div>
       )}
 
-      <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
-        <input
-          type="checkbox"
+      <div className={`mb-6 flex items-center justify-between ${card} px-4 py-3`}>
+        <div>
+          <div className="font-medium">Global pause</div>
+          <div className={hint}>Stop all header modifications; profile states are kept.</div>
+        </div>
+        <Toggle
+          title="Global pause"
           checked={state.config.globalPause}
-          onChange={(e) => store.setGlobalPause(e.target.checked)}
+          onChange={(v) => store.setGlobalPause(v)}
         />
-        Global pause (stop all header modifications; profile states are kept)
-      </label>
+      </div>
 
-      <section style={{ marginBottom: 24 }}>
-        <h3>Profiles</h3>
-        <p style={{ color: '#666', fontSize: 13 }}>
+      <section className="mb-8">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className={sectionTitle}>Profiles</h2>
+          <div className="flex gap-2">
+            <Button variant="primary" onClick={addProfile}>
+              + Add profile
+            </Button>
+            <Button onClick={() => downloadJson('butterheader-config.json', exportConfig(state.config))}>
+              Export all
+            </Button>
+            <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+              Import
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="sr-only"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  try {
+                    store.importProfiles(await file.text());
+                    setImportError(null);
+                  } catch (err) {
+                    setImportError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
+                  }
+                }}
+              />
+            </label>
+          </div>
+        </div>
+        <p className={`mb-3 ${hint}`}>
           Drag to reorder. On same-header conflicts, profiles lower in the list win.
         </p>
-        {profiles.map((profile) => (
-          <div
-            key={profile.id}
-            draggable
-            onDragStart={() => setDragId(profile.id)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => dropOn(profile.id)}
-            style={{
-              display: 'flex',
-              gap: 8,
-              marginBottom: 4,
-              alignItems: 'center',
-              padding: 4,
-              border: '1px solid #ddd',
-              borderRadius: 4,
-              background: profile.id === selected?.id ? '#eef' : '#fff',
-              cursor: 'grab',
-            }}
-          >
-            <span title="Drag to reorder">⠿</span>
-            <input
-              type="checkbox"
-              title="Enable profile"
-              checked={profile.enabled}
-              onChange={(e) =>
-                store.updateProfile({ ...profile, enabled: e.target.checked }, { flush: true })
-              }
-            />
-            <input
-              value={profile.name}
-              onChange={(e) => store.updateProfile({ ...profile, name: e.target.value })}
-            />
-            <button onClick={() => setSelectedId(profile.id)}>Edit</button>
-            <button
-              onClick={() =>
-                downloadJson(`butterheader-profile-${profile.name}.json`, exportProfile(profile))
-              }
+
+        <div className="space-y-1.5">
+          {profiles.map((profile) => (
+            <div
+              key={profile.id}
+              draggable
+              onDragStart={() => setDragId(profile.id)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => dropOn(profile.id)}
+              className={`flex items-center gap-2 px-3 py-2 ${card} ${
+                profile.id === selected?.id ? 'ring-2 ring-accent' : ''
+              }`}
             >
-              Export
-            </button>
-            <button onClick={() => removeProfile(profile)}>Delete</button>
-          </div>
-        ))}
-        <button onClick={addProfile}>Add profile</button>
-        <button
-          onClick={() => downloadJson('butterheader-config.json', exportConfig(state.config))}
-        >
-          Export all
-        </button>
-        <label style={{ marginLeft: 8 }}>
-          Import JSON
-          <input
-            type="file"
-            accept="application/json,.json"
-            style={{ marginLeft: 4 }}
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              e.target.value = '';
-              if (!file) return;
-              try {
-                store.importProfiles(await file.text());
-                setImportError(null);
-              } catch (err) {
-                setImportError(
-                  `Import failed: ${err instanceof Error ? err.message : String(err)}`,
-                );
-              }
-            }}
-          />
-        </label>
+              <span className="cursor-grab select-none text-slate-400" title="Drag to reorder">
+                ⠿
+              </span>
+              <Toggle
+                title="Enable profile"
+                checked={profile.enabled}
+                onChange={(v) => store.updateProfile({ ...profile, enabled: v }, { flush: true })}
+              />
+              <TextInput
+                className="flex-1"
+                value={profile.name}
+                onChange={(e) => store.updateProfile({ ...profile, name: e.target.value })}
+              />
+              <Button variant="ghost" onClick={() => setSelectedId(profile.id)}>
+                Edit
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  downloadJson(`butterheader-profile-${profile.name}.json`, exportProfile(profile))
+                }
+              >
+                Export
+              </Button>
+              <Button variant="danger" onClick={() => removeProfile(profile)}>
+                Delete
+              </Button>
+            </div>
+          ))}
+          {profiles.length === 0 && (
+            <p className={`px-1 py-2 ${hint}`}>No profiles yet — add one to get started.</p>
+          )}
+        </div>
       </section>
 
       {selected && (
-        <section>
-          <h2>{selected.name}</h2>
-          <section style={{ marginBottom: 16 }}>
-            <h3>Domains</h3>
-            <p style={{ color: '#666', fontSize: 13 }}>
-              Empty list applies to all sites. Use <code>*.example.com</code> for subdomains.
+        <section className={`${card} p-5`}>
+          <h2 className="mb-4 text-lg font-semibold">{selected.name}</h2>
+
+          <div className="mb-6">
+            <h3 className={`mb-1 ${sectionTitle}`}>Domains</h3>
+            <p className={`mb-3 ${hint}`}>
+              Empty list applies to all sites. Use <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">*.example.com</code> for subdomains.
             </p>
-            {selected.domains.map((domain) => (
-              <div
-                key={domain}
-                style={{ display: 'flex', gap: 8, marginBottom: 4, alignItems: 'center' }}
-              >
-                <code>{domain}</code>
-                <button
-                  onClick={() =>
-                    store.updateProfile(
-                      { ...selected, domains: selected.domains.filter((d) => d !== domain) },
-                      { flush: true },
-                    )
-                  }
+            <div className="mb-3 flex flex-wrap gap-2">
+              {selected.domains.map((domain) => (
+                <span
+                  key={domain}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-1 pl-3 pr-1.5 text-sm dark:bg-slate-700"
                 >
-                  Delete
-                </button>
-              </div>
-            ))}
+                  <code>{domain}</code>
+                  <button
+                    title={`Remove ${domain}`}
+                    className="flex h-4 w-4 items-center justify-center rounded-full text-slate-500 hover:bg-slate-300 hover:text-slate-800 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+                    onClick={() =>
+                      store.updateProfile(
+                        { ...selected, domains: selected.domains.filter((d) => d !== domain) },
+                        { flush: true },
+                      )
+                    }
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
             <form
+              className="flex gap-2"
               onSubmit={(e: FormEvent<HTMLFormElement>) => {
                 e.preventDefault();
                 const input = e.currentTarget.elements.namedItem('domain') as HTMLInputElement;
@@ -208,68 +224,73 @@ export function App() {
                 input.value = '';
               }}
             >
-              <input name="domain" placeholder="example.com or *.example.com" />
-              <button type="submit">Add domain</button>
+              <TextInput name="domain" className="flex-1" placeholder="example.com or *.example.com" />
+              <Button variant="secondary" type="submit">
+                Add domain
+              </Button>
             </form>
-          </section>
+          </div>
 
-          <h3>Header rules</h3>
-          {selected.rules.map((rule) => (
-            <div
-              key={rule.id}
-              style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}
-            >
-              <input
-                type="checkbox"
-                title="Enable rule"
-                checked={rule.enabled}
-                onChange={(e) => updateRule(selected, rule.id, { enabled: e.target.checked })}
-              />
-              <select
-                value={rule.target}
-                onChange={(e) =>
-                  updateRule(selected, rule.id, { target: e.target.value as HeaderRule['target'] })
-                }
-              >
-                <option value="request">Request</option>
-                <option value="response">Response</option>
-              </select>
-              <select
-                value={rule.operation}
-                onChange={(e) =>
-                  updateRule(selected, rule.id, {
-                    operation: e.target.value as HeaderRule['operation'],
-                  })
-                }
-              >
-                <option value="set">Set</option>
-                <option value="remove">Remove</option>
-              </select>
-              <input
-                placeholder="Header name"
-                value={rule.name}
-                onChange={(e) => updateRule(selected, rule.id, { name: e.target.value })}
-              />
-              {rule.operation === 'set' && (
-                <input
-                  placeholder="Value"
-                  value={rule.value ?? ''}
-                  onChange={(e) => updateRule(selected, rule.id, { value: e.target.value })}
+          <h3 className={`mb-2 ${sectionTitle}`}>Header rules</h3>
+          <div className="space-y-2">
+            {selected.rules.map((rule) => (
+              <div key={rule.id} className="flex flex-wrap items-center gap-2">
+                <Toggle
+                  title="Enable rule"
+                  checked={rule.enabled}
+                  onChange={(v) => updateRule(selected, rule.id, { enabled: v })}
                 />
-              )}
-              <button
-                onClick={() =>
-                  store.updateProfile(
-                    { ...selected, rules: selected.rules.filter((r) => r.id !== rule.id) },
-                    { flush: true },
-                  )
-                }
-              >
-                Delete
-              </button>
-            </div>
-          ))}
-          <button
+                <Select
+                  value={rule.target}
+                  onChange={(e) =>
+                    updateRule(selected, rule.id, { target: e.target.value as HeaderRule['target'] })
+                  }
+                >
+                  <option value="request">Request</option>
+                  <option value="response">Response</option>
+                </Select>
+                <Select
+                  value={rule.operation}
+                  onChange={(e) =>
+                    updateRule(selected, rule.id, {
+                      operation: e.target.value as HeaderRule['operation'],
+                    })
+                  }
+                >
+                  <option value="set">Set</option>
+                  <option value="remove">Remove</option>
+                </Select>
+                <TextInput
+                  className="flex-1"
+                  placeholder="Header name"
+                  value={rule.name}
+                  onChange={(e) => updateRule(selected, rule.id, { name: e.target.value })}
+                />
+                {rule.operation === 'set' && (
+                  <TextInput
+                    className="flex-1"
+                    placeholder="Value"
+                    value={rule.value ?? ''}
+                    onChange={(e) => updateRule(selected, rule.id, { value: e.target.value })}
+                  />
+                )}
+                <Button
+                  variant="danger"
+                  onClick={() =>
+                    store.updateProfile(
+                      { ...selected, rules: selected.rules.filter((r) => r.id !== rule.id) },
+                      { flush: true },
+                    )
+                  }
+                >
+                  Delete
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="secondary"
+            className="mt-3"
             onClick={() =>
               store.updateProfile(
                 {
@@ -290,8 +311,8 @@ export function App() {
               )
             }
           >
-            Add header rule
-          </button>
+            + Add header rule
+          </Button>
         </section>
       )}
     </main>
