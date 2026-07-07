@@ -37,3 +37,7 @@ export async function deleteProfile(id: string): Promise<void> {
 export async function setProfileOrder(order: string[]): Promise<void> {
   await chrome.storage.sync.set({ profileOrder: order });
 }
+
+export async function setGlobalPause(paused: boolean): Promise<void> {
+  await chrome.storage.sync.set({ globalPause: paused });
+}

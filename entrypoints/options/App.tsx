@@ -1,6 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { HeaderRule, Profile } from '@/src/core/compile';
-import { deleteProfile, loadConfig, saveProfile, setProfileOrder } from '@/src/core/storage';
+import {
+  deleteProfile,
+  loadConfig,
+  saveProfile,
+  setGlobalPause,
+  setProfileOrder,
+} from '@/src/core/storage';
 
 function newProfile(name: string): Profile {
   return { id: crypto.randomUUID(), name, enabled: true, domains: [], rules: [] };
@@ -8,12 +14,14 @@ function newProfile(name: string): Profile {
 
 export function App() {
   const [profiles, setProfiles] = useState<Profile[] | null>(null);
+  const [globalPause, setGlobalPauseState] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
 
   useEffect(() => {
     void loadConfig().then((config) => {
       setProfiles(config.profiles);
+      setGlobalPauseState(config.globalPause);
       setSelectedId(config.profiles[0]?.id ?? null);
     });
   }, []);
@@ -61,6 +69,18 @@ export function App() {
   return (
     <main style={{ maxWidth: 720, margin: '2rem auto', fontFamily: 'system-ui' }}>
       <h1>ButterHeader</h1>
+
+      <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+        <input
+          type="checkbox"
+          checked={globalPause}
+          onChange={(e) => {
+            setGlobalPauseState(e.target.checked);
+            void setGlobalPause(e.target.checked);
+          }}
+        />
+        Global pause (stop all header modifications; profile states are kept)
+      </label>
 
       <section style={{ marginBottom: 24 }}>
         <h3>Profiles</h3>

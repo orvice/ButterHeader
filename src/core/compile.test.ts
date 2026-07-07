@@ -318,6 +318,25 @@ describe('compileRules', () => {
     expect(b.priority).toBeGreaterThan(a.priority!);
   });
 
+  it('compiles to an empty rule set when globally paused, without requiring profiles to be disabled', () => {
+    const config: Config = {
+      globalPause: true,
+      profiles: [
+        {
+          id: 'p1',
+          name: 'Debug',
+          enabled: true,
+          domains: [],
+          rules: [
+            { id: 'r1', enabled: true, target: 'request', operation: 'set', name: 'X-A', value: '1' },
+          ],
+        },
+      ],
+    };
+
+    expect(compileRules(config)).toEqual([]);
+  });
+
   it('compiles an empty config into an empty rule set', () => {
     expect(compileRules({ globalPause: false, profiles: [] })).toEqual([]);
   });

@@ -67,6 +67,8 @@ function toDomainCondition(domains: string[]): chrome.declarativeNetRequest.Rule
 
 export function compileRules(config: Config): DNRRule[] {
   const rules: DNRRule[] = [];
+  // 全局暂停只叠加判定，不改写 Profile/规则状态（见 CONTEXT.md）
+  if (config.globalPause) return rules;
   for (const [index, profile] of config.profiles.entries()) {
     if (!profile.enabled) continue;
     for (const rule of profile.rules) {
