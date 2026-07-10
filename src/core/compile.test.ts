@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileRules, type Config } from './compile';
+import { compileRules, type Config, type Profile } from './compile';
 
 describe('compileRules', () => {
   it('compiles an enabled profile with one set-request-header rule into one DNR rule that applies to all sites', () => {
@@ -335,6 +335,98 @@ describe('compileRules', () => {
     };
 
     expect(compileRules(config)).toEqual([]);
+  });
+
+  it('compiles an enabled redirect rule into a DNR redirect action that swaps host and port, matching the source domain', () => {
+    const config: Config = {
+      globalPause: false,
+      profiles: [
+        {
+          id: 'p1',
+          name: 'Local dev',
+          enabled: true,
+          domains: [],
+          rules: [],
+          redirects: [
+            { id: 'rd1', enabled: true, source: 'api.example.com', target: 'localhost:3000' },
+          ],
+        },
+      ],
+    };
+
+    const [rule] = compileRules(config);
+    expect(rule.action.type).toBe('redirect');
+    expect(rule.action.redirect?.transform).toEqual({ host: 'localhost', port: '3000' });
+    // 源域名复用 Domain Filter 语义：精确匹配 api.example.com，不命中其它
+    const regex = new RegExp(rule.condition.regexFilter!);
+    expect(regex.test('https://api.example.com/v1/users')).toBe(true);
+    expect(regex.test('https://other.com/')).toBe(false);
+  });
+
+  it('compiles a wildcard-source redirect whose target carries a scheme into transform scheme+host+port', () => {
+    const config: Config = {
+      globalPause: false,
+      profiles: [
+        {
+          id: 'p1',
+          name: 'Local dev',
+          enabled: true,
+          domains: [],
+          rules: [],
+          redirects: [
+            { id: 'rd1', enabled: true, source: '*.example.com', target: 'http://localhost:8080' },
+          ],
+        },
+      ],
+    };
+
+    const [rule] = compileRules(config);
+    expect(rule.action.redirect?.transform).toEqual({
+      host: 'localhost',
+      port: '8080',
+      scheme: 'http',
+    });
+    const regex = new RegExp(rule.condition.regexFilter!);
+    expect(regex.test('https://api.example.com/')).toBe(true);
+    expect(regex.test('https://example.com/')).toBe(false);
+  });
+
+  it('skips redirect rules with an empty or hostless target without throwing', () => {
+    const config: Config = {
+      globalPause: false,
+      profiles: [
+        {
+          id: 'p1',
+          name: 'x',
+          enabled: true,
+          domains: [],
+          rules: [],
+          redirects: [
+            { id: 'rd1', enabled: true, source: 'a.com', target: '' },
+            { id: 'rd2', enabled: true, source: 'b.com', target: 'https://' },
+            { id: 'rd3', enabled: true, source: 'c.com', target: 'good.test' },
+          ],
+        },
+      ],
+    };
+
+    const compiled = compileRules(config);
+    expect(compiled).toHaveLength(1);
+    expect(compiled[0].action.redirect?.transform).toEqual({ host: 'good.test' });
+  });
+
+  it('produces no redirect rules when globally paused, profile disabled, or the rule is disabled', () => {
+    const redirect = { id: 'rd1', enabled: true, source: 'a.com', target: 'localhost:3000' };
+    const base = (over: Partial<Profile>): Config => ({
+      globalPause: false,
+      profiles: [
+        { id: 'p1', name: 'x', enabled: true, domains: [], rules: [], redirects: [redirect], ...over },
+      ],
+    });
+
+    expect(compileRules({ ...base({}), globalPause: true })).toEqual([]);
+    expect(compileRules(base({ enabled: false }))).toEqual([]);
+    expect(compileRules(base({ redirects: [{ ...redirect, enabled: false }] }))).toEqual([]);
   });
 
   it('compiles an empty config into an empty rule set', () => {

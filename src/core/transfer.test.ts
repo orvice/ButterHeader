@@ -55,6 +55,20 @@ describe('parseImport', () => {
     expect(imported[0].id).not.toBe('p1');
   });
 
+  it('regenerates redirect-rule ids on import so appended profiles never collide', () => {
+    const original: Profile = {
+      ...profile('p1', 'Solo'),
+      redirects: [{ id: 'rd1', enabled: true, source: 'a.com', target: 'localhost:3000' }],
+    };
+
+    const [imported] = parseImport(exportProfile(original));
+
+    expect(imported.redirects).toHaveLength(1);
+    expect(imported.redirects![0].id).not.toBe('rd1');
+    expect(imported.redirects![0].source).toBe('a.com');
+    expect(imported.redirects![0].target).toBe('localhost:3000');
+  });
+
   it('parses a full-config export into all profiles in order, each with a fresh id', () => {
     const config: Config = {
       globalPause: true,
