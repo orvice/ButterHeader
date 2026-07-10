@@ -76,7 +76,7 @@ export function App() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-10 text-slate-900 dark:text-slate-100">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">ButterHeader</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Butter Box</h1>
       </header>
 
       {(state.saveError || importError) && (
@@ -118,7 +118,7 @@ export function App() {
             <Button variant="primary" onClick={addProfile}>
               + Add profile
             </Button>
-            <Button onClick={() => downloadJson('butterheader-config.json', exportConfig(state.config))}>
+            <Button onClick={() => downloadJson('butter-box-config.json', exportConfig(state.config))}>
               Export all
             </Button>
             <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
@@ -177,7 +177,7 @@ export function App() {
               <Button
                 variant="ghost"
                 onClick={() =>
-                  downloadJson(`butterheader-profile-${profile.name}.json`, exportProfile(profile))
+                  downloadJson(`butter-box-profile-${profile.name}.json`, exportProfile(profile))
                 }
               >
                 Export

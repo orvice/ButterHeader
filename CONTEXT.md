@@ -1,4 +1,4 @@
-# ButterHeader — Ubiquitous Language
+# Butter Box — Ubiquitous Language
 
 ## Terms
 

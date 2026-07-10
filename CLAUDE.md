@@ -1,6 +1,6 @@
-# ButterHeader
+# Butter Box
 
-A Chrome extension.
+A Chrome extension. (Repo/GitHub slug remains `orvice/ButterHeader`.)
 
 ## Agent skills
 
