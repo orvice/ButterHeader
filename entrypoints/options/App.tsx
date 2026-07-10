@@ -74,15 +74,15 @@ export function App() {
   };
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10 text-slate-900 dark:text-slate-100">
-      <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Butter Box</h1>
+    <div className="min-h-screen text-slate-900 dark:text-slate-100">
+      <header className="border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+        <h1 className="text-xl font-bold tracking-tight">Butter Box</h1>
       </header>
 
       {(state.saveError || importError) && (
         <div
           role="alert"
-          className="mb-6 flex items-start gap-2 rounded-card border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+          className="mx-6 mt-4 flex items-start gap-2 rounded-card border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
         >
           <span aria-hidden className="mt-0.5">⚠️</span>
           <div className="flex-1">
@@ -99,29 +99,78 @@ export function App() {
         </div>
       )}
 
-      <div className={`mb-6 flex items-center justify-between ${card} px-4 py-3`}>
-        <div>
-          <div className="font-medium">Global pause</div>
-          <div className={hint}>Stop all header modifications; profile states are kept.</div>
-        </div>
-        <Toggle
-          title="Global pause"
-          checked={state.config.globalPause}
-          onChange={(v) => store.setGlobalPause(v)}
-        />
-      </div>
+      <div className="flex items-start gap-6 px-6 py-6">
+        {/* 侧边栏：全局暂停 + Profile 选择/排序 + 增删导入导出 */}
+        <aside className="w-60 shrink-0 space-y-3">
+          <div className={`flex items-center justify-between ${card} px-3 py-2`}>
+            <div>
+              <div className="text-sm font-medium">Global pause</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">Profile states kept</div>
+            </div>
+            <Toggle
+              title="Global pause"
+              checked={state.config.globalPause}
+              onChange={(v) => store.setGlobalPause(v)}
+            />
+          </div>
 
-      <section className="mb-8">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className={sectionTitle}>Profiles</h2>
-          <div className="flex gap-2">
-            <Button variant="primary" onClick={addProfile}>
-              + Add profile
-            </Button>
-            <Button onClick={() => downloadJson('butter-box-config.json', exportConfig(state.config))}>
+          <div>
+            <h2 className={`mb-1.5 ${sectionTitle}`}>Profiles</h2>
+            <div className="space-y-1">
+              {profiles.map((profile) => (
+                <div
+                  key={profile.id}
+                  draggable
+                  onDragStart={() => setDragId(profile.id)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => dropOn(profile.id)}
+                  onClick={() => setSelectedId(profile.id)}
+                  className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
+                    profile.id === selected?.id
+                      ? 'bg-accent/10 ring-1 ring-accent'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span
+                    className="cursor-grab select-none text-slate-400"
+                    title="Drag to reorder"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    ⠿
+                  </span>
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <Toggle
+                      title="Enable profile"
+                      checked={profile.enabled}
+                      onChange={(v) =>
+                        store.updateProfile({ ...profile, enabled: v }, { flush: true })
+                      }
+                    />
+                  </span>
+                  <span className={`flex-1 truncate ${profile.enabled ? '' : 'text-slate-400'}`}>
+                    {profile.name || 'Untitled'}
+                  </span>
+                </div>
+              ))}
+              {profiles.length === 0 && (
+                <p className={`px-1 py-1 ${hint}`}>No profiles yet.</p>
+              )}
+            </div>
+            <p className={`mt-1.5 text-[11px] text-slate-400`}>Drag to reorder; lower wins conflicts.</p>
+          </div>
+
+          <Button variant="primary" className="w-full" onClick={addProfile}>
+            + Add profile
+          </Button>
+
+          <div className="flex gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
+            <Button
+              className="flex-1"
+              onClick={() => downloadJson('butter-box-config.json', exportConfig(state.config))}
+            >
               Export all
             </Button>
-            <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+            <label className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
               Import
               <input
                 type="file"
@@ -141,259 +190,234 @@ export function App() {
               />
             </label>
           </div>
-        </div>
-        <p className={`mb-3 ${hint}`}>
-          Drag to reorder. On same-header conflicts, profiles lower in the list win.
-        </p>
+        </aside>
 
-        <div className="space-y-1.5">
-          {profiles.map((profile) => (
-            <div
-              key={profile.id}
-              draggable
-              onDragStart={() => setDragId(profile.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => dropOn(profile.id)}
-              className={`flex items-center gap-2 px-3 py-2 ${card} ${
-                profile.id === selected?.id ? 'ring-2 ring-accent' : ''
-              }`}
-            >
-              <span className="cursor-grab select-none text-slate-400" title="Drag to reorder">
-                ⠿
-              </span>
-              <Toggle
-                title="Enable profile"
-                checked={profile.enabled}
-                onChange={(v) => store.updateProfile({ ...profile, enabled: v }, { flush: true })}
-              />
-              <TextInput
-                className="flex-1"
-                value={profile.name}
-                onChange={(e) => store.updateProfile({ ...profile, name: e.target.value })}
-              />
-              <Button variant="ghost" onClick={() => setSelectedId(profile.id)}>
-                Edit
-              </Button>
+        {/* 编辑区：选中 Profile 的重命名/导出/删除 + Domains / Header / Redirect */}
+        <div className="min-w-0 flex-1">
+          {selected ? (
+            <section className={`${card} p-5`}>
+              <div className="mb-5 flex items-center gap-2">
+                <TextInput
+                  className="flex-1 text-lg font-semibold"
+                  aria-label="Profile name"
+                  value={selected.name}
+                  onChange={(e) => store.updateProfile({ ...selected, name: e.target.value })}
+                />
+                <Button
+                  onClick={() =>
+                    downloadJson(`butter-box-profile-${selected.name}.json`, exportProfile(selected))
+                  }
+                >
+                  Export
+                </Button>
+                <Button variant="danger" onClick={() => removeProfile(selected)}>
+                  Delete
+                </Button>
+              </div>
+
+              <div className="mb-6">
+                <h3 className={`mb-1 ${sectionTitle}`}>Domains</h3>
+                <p className={`mb-3 ${hint}`}>
+                  Empty list applies to all sites. Use <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">*.example.com</code> for subdomains.
+                </p>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {selected.domains.map((domain) => (
+                    <span
+                      key={domain}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-1 pl-3 pr-1.5 text-sm dark:bg-slate-700"
+                    >
+                      <code>{domain}</code>
+                      <button
+                        title={`Remove ${domain}`}
+                        className="flex h-4 w-4 items-center justify-center rounded-full text-slate-500 hover:bg-slate-300 hover:text-slate-800 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+                        onClick={() =>
+                          store.updateProfile(
+                            { ...selected, domains: selected.domains.filter((d) => d !== domain) },
+                            { flush: true },
+                          )
+                        }
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <form
+                  className="flex gap-2"
+                  onSubmit={(e: FormEvent<HTMLFormElement>) => {
+                    e.preventDefault();
+                    const input = e.currentTarget.elements.namedItem('domain') as HTMLInputElement;
+                    const domain = input.value.trim();
+                    if (domain && !selected.domains.includes(domain)) {
+                      store.updateProfile(
+                        { ...selected, domains: [...selected.domains, domain] },
+                        { flush: true },
+                      );
+                    }
+                    input.value = '';
+                  }}
+                >
+                  <TextInput name="domain" className="flex-1" placeholder="example.com or *.example.com" />
+                  <Button variant="secondary" type="submit">
+                    Add domain
+                  </Button>
+                </form>
+              </div>
+
+              <h3 className={`mb-2 ${sectionTitle}`}>Header rules</h3>
+              <div className="space-y-2">
+                {selected.rules.map((rule) => (
+                  <div key={rule.id} className="flex flex-wrap items-center gap-2">
+                    <Toggle
+                      title="Enable rule"
+                      checked={rule.enabled}
+                      onChange={(v) => updateRule(selected, rule.id, { enabled: v })}
+                    />
+                    <Select
+                      value={rule.target}
+                      onChange={(e) =>
+                        updateRule(selected, rule.id, { target: e.target.value as HeaderRule['target'] })
+                      }
+                    >
+                      <option value="request">Request</option>
+                      <option value="response">Response</option>
+                    </Select>
+                    <Select
+                      value={rule.operation}
+                      onChange={(e) =>
+                        updateRule(selected, rule.id, {
+                          operation: e.target.value as HeaderRule['operation'],
+                        })
+                      }
+                    >
+                      <option value="set">Set</option>
+                      <option value="remove">Remove</option>
+                    </Select>
+                    <TextInput
+                      className="flex-1"
+                      placeholder="Header name"
+                      value={rule.name}
+                      onChange={(e) => updateRule(selected, rule.id, { name: e.target.value })}
+                    />
+                    {rule.operation === 'set' && (
+                      <TextInput
+                        className="flex-1"
+                        placeholder="Value"
+                        value={rule.value ?? ''}
+                        onChange={(e) => updateRule(selected, rule.id, { value: e.target.value })}
+                      />
+                    )}
+                    <Button
+                      variant="danger"
+                      onClick={() =>
+                        store.updateProfile(
+                          { ...selected, rules: selected.rules.filter((r) => r.id !== rule.id) },
+                          { flush: true },
+                        )
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                ))}
+              </div>
               <Button
-                variant="ghost"
+                variant="secondary"
+                className="mt-3"
                 onClick={() =>
-                  downloadJson(`butter-box-profile-${profile.name}.json`, exportProfile(profile))
+                  store.updateProfile(
+                    {
+                      ...selected,
+                      rules: [
+                        ...selected.rules,
+                        {
+                          id: crypto.randomUUID(),
+                          enabled: true,
+                          target: 'request',
+                          operation: 'set',
+                          name: '',
+                          value: '',
+                        },
+                      ],
+                    },
+                    { flush: true },
+                  )
                 }
               >
-                Export
+                + Add header rule
               </Button>
-              <Button variant="danger" onClick={() => removeProfile(profile)}>
-                Delete
+
+              <h3 className={`mb-1 mt-6 ${sectionTitle}`}>Redirect rules</h3>
+              <p className={`mb-2 ${hint}`}>
+                Redirect requests to a matched source domain to another host (path and query are
+                kept). Target: <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">host</code>,{' '}
+                <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">host:port</code>, or{' '}
+                <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">http://localhost:3000</code>.
+              </p>
+              <div className="space-y-2">
+                {(selected.redirects ?? []).map((redirect) => (
+                  <div key={redirect.id} className="flex flex-wrap items-center gap-2">
+                    <Toggle
+                      title="Enable redirect"
+                      checked={redirect.enabled}
+                      onChange={(v) => updateRedirect(selected, redirect.id, { enabled: v }, { flush: true })}
+                    />
+                    <TextInput
+                      className="flex-1"
+                      placeholder="Source: example.com or *.example.com"
+                      value={redirect.source}
+                      onChange={(e) => updateRedirect(selected, redirect.id, { source: e.target.value })}
+                    />
+                    <span aria-hidden className="text-slate-400">→</span>
+                    <TextInput
+                      className="flex-1"
+                      placeholder="Target: localhost:3000"
+                      value={redirect.target}
+                      onChange={(e) => updateRedirect(selected, redirect.id, { target: e.target.value })}
+                    />
+                    <Button
+                      variant="danger"
+                      onClick={() =>
+                        store.updateProfile(
+                          {
+                            ...selected,
+                            redirects: (selected.redirects ?? []).filter((r) => r.id !== redirect.id),
+                          },
+                          { flush: true },
+                        )
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="secondary"
+                className="mt-3"
+                onClick={() =>
+                  store.updateProfile(
+                    {
+                      ...selected,
+                      redirects: [
+                        ...(selected.redirects ?? []),
+                        { id: crypto.randomUUID(), enabled: true, source: '', target: '' },
+                      ],
+                    },
+                    { flush: true },
+                  )
+                }
+              >
+                + Add redirect
               </Button>
+            </section>
+          ) : (
+            <div className={`${card} p-10 text-center ${hint}`}>
+              Select a profile on the left, or add one to get started.
             </div>
-          ))}
-          {profiles.length === 0 && (
-            <p className={`px-1 py-2 ${hint}`}>No profiles yet — add one to get started.</p>
           )}
         </div>
-      </section>
-
-      {selected && (
-        <section className={`${card} p-5`}>
-          <h2 className="mb-4 text-lg font-semibold">{selected.name}</h2>
-
-          <div className="mb-6">
-            <h3 className={`mb-1 ${sectionTitle}`}>Domains</h3>
-            <p className={`mb-3 ${hint}`}>
-              Empty list applies to all sites. Use <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">*.example.com</code> for subdomains.
-            </p>
-            <div className="mb-3 flex flex-wrap gap-2">
-              {selected.domains.map((domain) => (
-                <span
-                  key={domain}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-1 pl-3 pr-1.5 text-sm dark:bg-slate-700"
-                >
-                  <code>{domain}</code>
-                  <button
-                    title={`Remove ${domain}`}
-                    className="flex h-4 w-4 items-center justify-center rounded-full text-slate-500 hover:bg-slate-300 hover:text-slate-800 dark:hover:bg-slate-600 dark:hover:text-slate-100"
-                    onClick={() =>
-                      store.updateProfile(
-                        { ...selected, domains: selected.domains.filter((d) => d !== domain) },
-                        { flush: true },
-                      )
-                    }
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <form
-              className="flex gap-2"
-              onSubmit={(e: FormEvent<HTMLFormElement>) => {
-                e.preventDefault();
-                const input = e.currentTarget.elements.namedItem('domain') as HTMLInputElement;
-                const domain = input.value.trim();
-                if (domain && !selected.domains.includes(domain)) {
-                  store.updateProfile(
-                    { ...selected, domains: [...selected.domains, domain] },
-                    { flush: true },
-                  );
-                }
-                input.value = '';
-              }}
-            >
-              <TextInput name="domain" className="flex-1" placeholder="example.com or *.example.com" />
-              <Button variant="secondary" type="submit">
-                Add domain
-              </Button>
-            </form>
-          </div>
-
-          <h3 className={`mb-2 ${sectionTitle}`}>Header rules</h3>
-          <div className="space-y-2">
-            {selected.rules.map((rule) => (
-              <div key={rule.id} className="flex flex-wrap items-center gap-2">
-                <Toggle
-                  title="Enable rule"
-                  checked={rule.enabled}
-                  onChange={(v) => updateRule(selected, rule.id, { enabled: v })}
-                />
-                <Select
-                  value={rule.target}
-                  onChange={(e) =>
-                    updateRule(selected, rule.id, { target: e.target.value as HeaderRule['target'] })
-                  }
-                >
-                  <option value="request">Request</option>
-                  <option value="response">Response</option>
-                </Select>
-                <Select
-                  value={rule.operation}
-                  onChange={(e) =>
-                    updateRule(selected, rule.id, {
-                      operation: e.target.value as HeaderRule['operation'],
-                    })
-                  }
-                >
-                  <option value="set">Set</option>
-                  <option value="remove">Remove</option>
-                </Select>
-                <TextInput
-                  className="flex-1"
-                  placeholder="Header name"
-                  value={rule.name}
-                  onChange={(e) => updateRule(selected, rule.id, { name: e.target.value })}
-                />
-                {rule.operation === 'set' && (
-                  <TextInput
-                    className="flex-1"
-                    placeholder="Value"
-                    value={rule.value ?? ''}
-                    onChange={(e) => updateRule(selected, rule.id, { value: e.target.value })}
-                  />
-                )}
-                <Button
-                  variant="danger"
-                  onClick={() =>
-                    store.updateProfile(
-                      { ...selected, rules: selected.rules.filter((r) => r.id !== rule.id) },
-                      { flush: true },
-                    )
-                  }
-                >
-                  Delete
-                </Button>
-              </div>
-            ))}
-          </div>
-          <Button
-            variant="secondary"
-            className="mt-3"
-            onClick={() =>
-              store.updateProfile(
-                {
-                  ...selected,
-                  rules: [
-                    ...selected.rules,
-                    {
-                      id: crypto.randomUUID(),
-                      enabled: true,
-                      target: 'request',
-                      operation: 'set',
-                      name: '',
-                      value: '',
-                    },
-                  ],
-                },
-                { flush: true },
-              )
-            }
-          >
-            + Add header rule
-          </Button>
-
-          <h3 className={`mb-1 mt-6 ${sectionTitle}`}>Redirect rules</h3>
-          <p className={`mb-2 ${hint}`}>
-            Redirect requests to a matched source domain to another host (path and query are
-            kept). Target: <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">host</code>,{' '}
-            <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">host:port</code>, or{' '}
-            <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">http://localhost:3000</code>.
-          </p>
-          <div className="space-y-2">
-            {(selected.redirects ?? []).map((redirect) => (
-              <div key={redirect.id} className="flex flex-wrap items-center gap-2">
-                <Toggle
-                  title="Enable redirect"
-                  checked={redirect.enabled}
-                  onChange={(v) => updateRedirect(selected, redirect.id, { enabled: v }, { flush: true })}
-                />
-                <TextInput
-                  className="flex-1"
-                  placeholder="Source: example.com or *.example.com"
-                  value={redirect.source}
-                  onChange={(e) => updateRedirect(selected, redirect.id, { source: e.target.value })}
-                />
-                <span aria-hidden className="text-slate-400">→</span>
-                <TextInput
-                  className="flex-1"
-                  placeholder="Target: localhost:3000"
-                  value={redirect.target}
-                  onChange={(e) => updateRedirect(selected, redirect.id, { target: e.target.value })}
-                />
-                <Button
-                  variant="danger"
-                  onClick={() =>
-                    store.updateProfile(
-                      {
-                        ...selected,
-                        redirects: (selected.redirects ?? []).filter((r) => r.id !== redirect.id),
-                      },
-                      { flush: true },
-                    )
-                  }
-                >
-                  Delete
-                </Button>
-              </div>
-            ))}
-          </div>
-          <Button
-            variant="secondary"
-            className="mt-3"
-            onClick={() =>
-              store.updateProfile(
-                {
-                  ...selected,
-                  redirects: [
-                    ...(selected.redirects ?? []),
-                    { id: crypto.randomUUID(), enabled: true, source: '', target: '' },
-                  ],
-                },
-                { flush: true },
-              )
-            }
-          >
-            + Add redirect
-          </Button>
-        </section>
-      )}
-    </main>
+      </div>
+    </div>
   );
 }
