@@ -7,7 +7,7 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: {
-    name: 'ButterHeader',
+    name: 'Butter Box',
     description: 'Profile-based request/response header modification',
     permissions: ['declarativeNetRequest', 'storage'],
     host_permissions: ['<all_urls>'],
