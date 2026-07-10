@@ -7,6 +7,15 @@ export interface HeaderRule {
   value?: string;
 }
 
+export interface RedirectRule {
+  id: string;
+  enabled: boolean;
+  /** 源域名：example.com 精确 / *.example.com 通配（复用 Domain Filter 语义） */
+  source: string;
+  /** 目标：host | host:port | scheme://host[:port]，如 localhost:3000、http://localhost:3000 */
+  target: string;
+}
+
 export interface Profile {
   id: string;
   name: string;
@@ -14,6 +23,8 @@ export interface Profile {
   /** Domain Filter：空列表 = 对所有网站生效（见 CONTEXT.md） */
   domains: string[];
   rules: HeaderRule[];
+  /** Redirect 规则（见 CONTEXT.md）；旧配置无此字段，视为空 */
+  redirects?: RedirectRule[];
 }
 
 export interface Config {
@@ -65,6 +76,33 @@ function toDomainCondition(domains: string[]): chrome.declarativeNetRequest.Rule
   return { regexFilter: `^[^:]+://(?:${hostAlts.join('|')})(?::\\d+)?(?:/|$)` };
 }
 
+/**
+ * 解析 redirect 目标为 DNR URLTransform 的 host/port/scheme。
+ * 支持 host、host:port、scheme://host[:port]；无 host 返回 null（规则跳过）。
+ */
+export function parseRedirectTarget(
+  target: string,
+): { host: string; port?: string; scheme?: string } | null {
+  let rest = target.trim();
+  if (rest === '') return null;
+  let scheme: string | undefined;
+  const schemeMatch = rest.match(/^(https?):\/\//i);
+  if (schemeMatch) {
+    scheme = schemeMatch[1].toLowerCase();
+    rest = rest.slice(schemeMatch[0].length);
+  }
+  // 去掉可能残留的 path/query（只取 authority 段）
+  rest = rest.split('/')[0];
+  let port: string | undefined;
+  const portMatch = rest.match(/:(\d+)$/);
+  if (portMatch) {
+    port = portMatch[1];
+    rest = rest.slice(0, portMatch.index);
+  }
+  if (rest === '') return null;
+  return { host: rest, ...(port ? { port } : {}), ...(scheme ? { scheme } : {}) };
+}
+
 export function compileRules(config: Config): DNRRule[] {
   const rules: DNRRule[] = [];
   // 全局暂停只叠加判定，不改写 Profile/规则状态（见 CONTEXT.md）
@@ -86,6 +124,24 @@ export function compileRules(config: Config): DNRRule[] {
         },
         condition: {
           ...toDomainCondition(profile.domains),
+          resourceTypes: ALL_RESOURCE_TYPES,
+        },
+      });
+    }
+    for (const redirect of profile.redirects ?? []) {
+      if (!redirect.enabled) continue;
+      const transform = parseRedirectTarget(redirect.target);
+      if (!transform) continue;
+      rules.push({
+        id: rules.length + 1,
+        priority: index + 1,
+        action: {
+          type: 'redirect' as chrome.declarativeNetRequest.RuleActionType,
+          redirect: { transform },
+        },
+        condition: {
+          // 源域名复用 Domain Filter 语义（精确/通配），保留 path/query
+          ...toDomainCondition([redirect.source]),
           resourceTypes: ALL_RESOURCE_TYPES,
         },
       });

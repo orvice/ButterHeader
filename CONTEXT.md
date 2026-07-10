@@ -8,6 +8,9 @@
 ### Header 规则（Header Rule）
 Profile 内的一条 header 修改指令。由四部分组成：**目标**（request / response）、**操作**（set / remove）、header 名、值（remove 时无值）。每条规则可单独启用/禁用。
 
+### Redirect 规则（Redirect Rule）
+Profile 内的一条重定向指令。由**源域名**和**目标**组成：命中源域名的请求被重定向到目标主机，保留原 path/query。源域名沿用 Domain 规则的匹配语义（`example.com` 精确、`*.example.com` 通配）；目标可写 `host`、`host:port` 或带协议 `http://localhost:3000`（可改 host / 端口 / 协议）。每条规则可单独启用/禁用，与 Header 规则平行。生效判定同样叠加全局暂停、Profile 启用、规则启用与源域名命中。
+
 ### Domain 规则（Domain Filter）
 Profile 级的白名单，决定该 Profile 对哪些站点生效。匹配的是**请求的目标域名**（request domain），而非发起请求的页面域名——在 A 站页面上发往 B 站的请求，按 B 站判定。`example.com` 精确匹配该域名；`*.example.com` 匹配其所有子域。**空列表 = 对所有网站生效**。无排除列表。
 

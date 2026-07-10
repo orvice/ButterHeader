@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { HeaderRule, Profile } from '@/src/core/compile';
+import type { HeaderRule, Profile, RedirectRule } from '@/src/core/compile';
 import { exportConfig, exportProfile } from '@/src/core/transfer';
 import { Button, Select, TextInput, Toggle, card } from '@/src/ui/components';
 import { useConfigStore } from '@/src/ui/use-config-store';
@@ -56,6 +56,21 @@ export function App() {
       ...profile,
       rules: profile.rules.map((r) => (r.id === id ? { ...r, ...patch } : r)),
     });
+  };
+
+  const updateRedirect = (
+    profile: Profile,
+    id: string,
+    patch: Partial<RedirectRule>,
+    opts?: { flush?: boolean },
+  ) => {
+    store.updateProfile(
+      {
+        ...profile,
+        redirects: (profile.redirects ?? []).map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      },
+      opts,
+    );
   };
 
   return (
@@ -312,6 +327,70 @@ export function App() {
             }
           >
             + Add header rule
+          </Button>
+
+          <h3 className={`mb-1 mt-6 ${sectionTitle}`}>Redirect rules</h3>
+          <p className={`mb-2 ${hint}`}>
+            Redirect requests to a matched source domain to another host (path and query are
+            kept). Target: <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">host</code>,{' '}
+            <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">host:port</code>, or{' '}
+            <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">http://localhost:3000</code>.
+          </p>
+          <div className="space-y-2">
+            {(selected.redirects ?? []).map((redirect) => (
+              <div key={redirect.id} className="flex flex-wrap items-center gap-2">
+                <Toggle
+                  title="Enable redirect"
+                  checked={redirect.enabled}
+                  onChange={(v) => updateRedirect(selected, redirect.id, { enabled: v }, { flush: true })}
+                />
+                <TextInput
+                  className="flex-1"
+                  placeholder="Source: example.com or *.example.com"
+                  value={redirect.source}
+                  onChange={(e) => updateRedirect(selected, redirect.id, { source: e.target.value })}
+                />
+                <span aria-hidden className="text-slate-400">→</span>
+                <TextInput
+                  className="flex-1"
+                  placeholder="Target: localhost:3000"
+                  value={redirect.target}
+                  onChange={(e) => updateRedirect(selected, redirect.id, { target: e.target.value })}
+                />
+                <Button
+                  variant="danger"
+                  onClick={() =>
+                    store.updateProfile(
+                      {
+                        ...selected,
+                        redirects: (selected.redirects ?? []).filter((r) => r.id !== redirect.id),
+                      },
+                      { flush: true },
+                    )
+                  }
+                >
+                  Delete
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="secondary"
+            className="mt-3"
+            onClick={() =>
+              store.updateProfile(
+                {
+                  ...selected,
+                  redirects: [
+                    ...(selected.redirects ?? []),
+                    { id: crypto.randomUUID(), enabled: true, source: '', target: '' },
+                  ],
+                },
+                { flush: true },
+              )
+            }
+          >
+            + Add redirect
           </Button>
         </section>
       )}

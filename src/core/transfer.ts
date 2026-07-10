@@ -17,6 +17,9 @@ function asNewProfile(p: Profile): Profile {
     ...p,
     id: crypto.randomUUID(),
     rules: p.rules.map((r) => ({ ...r, id: crypto.randomUUID() })),
+    ...(p.redirects
+      ? { redirects: p.redirects.map((r) => ({ ...r, id: crypto.randomUUID() })) }
+      : {}),
   };
 }
 
