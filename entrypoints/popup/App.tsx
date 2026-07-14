@@ -55,7 +55,12 @@ export function App() {
               {paused ? 'All rules off; states kept' : 'Enabled profiles apply'}
             </div>
           </div>
-          <Toggle title="Global pause" checked={paused} onChange={(v) => store.setGlobalPause(v)} />
+          {/* 开关代表「生效」：开 = Active，关 = Paused（比绑定 paused 更直觉） */}
+          <Toggle
+            title={paused ? 'Resume (currently paused)' : 'Pause all'}
+            checked={!paused}
+            onChange={(v) => store.setGlobalPause(!v)}
+          />
         </div>
 
         {/* Profile 列表 */}
