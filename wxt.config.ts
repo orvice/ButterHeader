@@ -7,8 +7,8 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: {
-    name: 'Butter Box',
-    description: 'Profile-based request/response header modification',
+    name: 'RequestLoom — Headers & Redirects',
+    description: 'Manage request and response headers and domain redirects with switchable profiles.',
     permissions: ['declarativeNetRequest', 'storage'],
     host_permissions: ['<all_urls>'],
   },

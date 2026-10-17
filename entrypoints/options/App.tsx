@@ -76,7 +76,7 @@ export function App() {
   return (
     <div className="min-h-screen text-slate-900 dark:text-slate-100">
       <header className="border-b border-slate-200 px-6 py-4 dark:border-slate-700">
-        <h1 className="text-xl font-bold tracking-tight">Butter Box</h1>
+        <h1 className="text-xl font-bold tracking-tight">RequestLoom</h1>
       </header>
 
       {(state.saveError || importError) && (
@@ -166,7 +166,7 @@ export function App() {
           <div className="flex gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
             <Button
               className="flex-1"
-              onClick={() => downloadJson('butter-box-config.json', exportConfig(state.config))}
+              onClick={() => downloadJson('requestloom-config.json', exportConfig(state.config))}
             >
               Export all
             </Button>
@@ -205,7 +205,7 @@ export function App() {
                 />
                 <Button
                   onClick={() =>
-                    downloadJson(`butter-box-profile-${selected.name}.json`, exportProfile(selected))
+                    downloadJson(`requestloom-profile-${selected.name}.json`, exportProfile(selected))
                   }
                 >
                   Export
