@@ -31,10 +31,10 @@ export function App() {
     <main className="w-80 text-sm text-slate-900 dark:text-slate-100">
       {/* 品牌头 */}
       <header className="flex items-center gap-2 border-b border-slate-200 px-3 py-2.5 dark:border-slate-700">
-        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/15 text-base leading-none">
-          🧈
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/15 text-xs font-bold leading-none">
+          RL
         </span>
-        <span className="font-semibold">Butter Box</span>
+        <span className="font-semibold">RequestLoom</span>
         <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">
           {paused ? 'Paused' : `${activeCount} active`}
         </span>

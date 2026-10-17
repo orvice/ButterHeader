@@ -1,4 +1,4 @@
-# Butter Box
+# RequestLoom
 
 A Chrome extension. (Repo/GitHub slug remains `orvice/ButterHeader`.)
 
