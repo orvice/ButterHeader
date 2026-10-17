@@ -79,6 +79,11 @@ export function App() {
         <h1 className="text-xl font-bold tracking-tight">RequestLoom</h1>
       </header>
 
+      <p className="px-6 pt-3 text-xs text-slate-500 dark:text-slate-400">
+        Profiles and header values are saved using Chrome Sync and may sync through your Google
+        account. Avoid storing production credentials. JSON exports include your configured values.
+      </p>
+
       {(state.saveError || importError) && (
         <div
           role="alert"
